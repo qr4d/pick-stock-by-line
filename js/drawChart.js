@@ -30,8 +30,9 @@ function drawChart(stockName, stockCode, time, price, yesterdayClose, volume, si
     // 添加标题
     svg.append('text').attr('x', chartWidth / 2).attr('y', -20).attr('text-anchor', 'middle').style('font-size', '16px').text(`${stockName} (${stockCode})`);
 
-    // 绘制横盘区域
+    // 绘制横盘和拉升区域
     sidewaysAnalysis.forEach(region => {
+        // 绘制横盘区域
         const startX = xScale(time[region.start]);
         const endX = xScale(time[region.end]);
         const avgX = (startX + endX) / 2; // 横盘区域的中间位置
@@ -59,8 +60,8 @@ function drawChart(stockName, stockCode, time, price, yesterdayClose, volume, si
         if (region.hasUptrend) {
             const uptrendStartX = xScale(time[region.uptrendStartIndex]);
             const uptrendStartY = yScale(region.uptrendStartPrice);
-            const uptrendEndX = xScale(time[region.start]);
-            const uptrendEndY = yScale(price[region.start]);
+            const uptrendEndX = xScale(time[region.end + 1]); // 拉升结束点在横盘结束后的索引
+            const uptrendEndY = yScale(price[region.end + 1]);
 
             svg.append('line')
                 .attr('x1', uptrendStartX)

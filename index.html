@@ -65,6 +65,17 @@
             <label for="stockCodes" class="form-label">输入股票代码（用逗号分隔）</label>
             <input type="text" class="form-control" id="stockCodes" placeholder="例如：sz002630,sh600519">
         </div>
+        <div class="mb-3">
+            <label class="form-label">筛选模式</label>
+            <div>
+                <input type="radio" id="modeUptrendToSideways" name="filterMode" value="uptrendToSideways" checked>
+                <label for="modeUptrendToSideways">拉升后横盘</label>
+            </div>
+            <div>
+                <input type="radio" id="modeSidewaysToUptrend" name="filterMode" value="sidewaysToUptrend">
+                <label for="modeSidewaysToUptrend">横盘后拉升</label>
+            </div>
+        </div>
         <button id="queryButton" class="btn btn-primary">查询</button>
         <div id="charts" class="mt-4"></div>
     </div>
