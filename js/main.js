@@ -9,27 +9,18 @@ $(document).ready(function () {
     // 动态加载股票文件列表
     async function loadStockFiles() {
         try {
-            const response = await fetch('./stockcodes/');
+            const response = await fetch('./listFiles.php');
             if (!response.ok) throw new Error('无法加载文件列表');
-            const text = await response.text();
+            const fileList = await response.json();
 
-            const fileNames = [...text.matchAll(/href="([^"]+\.txt)"/g)].map(match => decodeURIComponent(match[1]));
-            const options = await Promise.all(
-                fileNames.map(async fileName => {
-                    const filePath = `${fileName}`;
-                    const fileResponse = await fetch(filePath);
-                    if (!fileResponse.ok) throw new Error(`无法加载文件 ${filePath}`);
-                    const fileText = await fileResponse.text();
+            if (fileList.error) {
+                throw new Error(fileList.error);
+            }
 
-                    // 计算股票数量（按行分隔并过滤空行和注释）
-                    const stockCount = fileText
-                        .split('\n')
-                        .filter(line => line.trim() && !line.trim().startsWith('//')).length;
-
-                    const baseName = fileName.replace(/^.*[\\/]/, '').replace(/\.txt$/, '');
-                    return `<option value="${fileName}">${baseName} (${stockCount} 个股票)</option>`;
-                })
-            );
+            const options = fileList.map(file => {
+                const baseName = file.name.replace(/^.*[\\/]/, '').replace(/\.txt$/, '');
+                return `<option value="${file.name}">${baseName} (${file.lineCount} 个股票)</option>`;
+            });
 
             $('#fileSelector').html(options.join('')); // 一次性更新 DOM
             $('#fileInfo').text('文件列表加载完成');
@@ -153,7 +144,7 @@ $(document).ready(function () {
 
     async function loadStockCodesFromFile(fileName) {
         try {
-            const filePath = `${fileName}`;
+            const filePath = `./stockcodes/${fileName}`;
             const response = await fetch(filePath);
             if (!response.ok) throw new Error(`无法加载文件 ${filePath}`);
             const text = await response.text();
