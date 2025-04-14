@@ -155,3 +155,155 @@ function drawChart(stockName, stockCode, time, price, yesterdayClose, volume, si
         .attr('height', d => volumeChartHeight - volumeScale(d))
         .attr('fill', 'orange');
 }
+
+function drawDailyKlineChart(dailyKlineData, container) {
+    const containerWidth = container.clientWidth;
+    const chartWidth = containerWidth;
+    const chartHeight = 200;
+    const volumeChartHeight = 100; // 成交量图高度
+    const margin = { top: 40, right: 20, bottom: 30, left: 50 }; // 增加顶部边距以容纳图例
+
+    // 只保留最近 40 天的数据
+    const visibleDataCount = 40;
+    const visibleData = dailyKlineData.slice(-visibleDataCount);
+
+    const svg = d3.select(container)
+        .append('svg')
+        .attr('width', chartWidth)
+        .attr('height', chartHeight + volumeChartHeight + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // 定义价格和成交量的比例尺
+    const xScale = d3.scaleBand()
+        .domain(visibleData.map(d => d.date))
+        .range([0, chartWidth - margin.left - margin.right])
+        .padding(0.2);
+
+    const yScale = d3.scaleLinear()
+        .domain([d3.min(visibleData, d => d.low), d3.max(visibleData, d => d.high)])
+        .range([chartHeight, 0]);
+
+    const volumeScale = d3.scaleLinear()
+        .domain([0, d3.max(visibleData, d => d.volume)])
+        .range([volumeChartHeight, 0]);
+
+    // 添加坐标轴
+    const xAxis = d3.axisBottom(xScale);
+
+    svg.append('g')
+        .attr('transform', `translate(0,${chartHeight})`)
+        .call(xAxis)
+        .selectAll('text') // 选择所有的日期标签
+        .attr('transform', 'rotate(90)') // 旋转 90 度
+        .attr('x', 9) // 调整水平偏移
+        .attr('y', 0) // 调整垂直偏移
+        .style('text-anchor', 'start'); // 设置文本对齐方式
+
+    const yAxis = d3.axisLeft(yScale);
+
+    svg.append('g').call(yAxis);
+
+    // 绘制K线图
+    svg.selectAll('.candle')
+        .data(visibleData)
+        .enter()
+        .append('rect')
+        .attr('class', 'candle')
+        .attr('x', d => xScale(d.date))
+        .attr('y', d => yScale(Math.max(d.open, d.close)))
+        .attr('width', xScale.bandwidth())
+        .attr('height', d => Math.abs(yScale(d.open) - yScale(d.close)))
+        .attr('fill', d => d.open > d.close ? 'green' : 'red');
+
+    svg.selectAll('.wick')
+        .data(visibleData)
+        .enter()
+        .append('line')
+        .attr('class', 'wick')
+        .attr('x1', d => xScale(d.date) + xScale.bandwidth() / 2)
+        .attr('x2', d => xScale(d.date) + xScale.bandwidth() / 2)
+        .attr('y1', d => yScale(d.high))
+        .attr('y2', d => yScale(d.low))
+        .attr('stroke', 'black');
+
+    // 绘制成交量柱状图
+    const volumeGroup = svg.append('g').attr('transform', `translate(0,${chartHeight + 20})`);
+    volumeGroup.selectAll('.volume-bar')
+        .data(visibleData)
+        .enter()
+        .append('rect')
+        .attr('class', 'volume-bar')
+        .attr('x', d => xScale(d.date))
+        .attr('y', d => volumeScale(d.volume))
+        .attr('width', xScale.bandwidth())
+        .attr('height', d => volumeChartHeight - volumeScale(d.volume))
+        .attr('fill', d => d.open > d.close ? 'green' : 'red');
+
+    // 计算均线数据
+    const calculateMA = (data, period) => {
+        return data.map((_, i) => {
+            if (i < period - 1) return null; // 前期不足的数据点不计算
+            const sum = data.slice(i - period + 1, i + 1).reduce((acc, d) => acc + d.close, 0);
+            return sum / period;
+        });
+    };
+
+    const ma5 = calculateMA(dailyKlineData, 5).slice(-visibleDataCount);
+    const ma10 = calculateMA(dailyKlineData, 10).slice(-visibleDataCount);
+    const ma20 = calculateMA(dailyKlineData, 20).slice(-visibleDataCount);
+    const ma60 = calculateMA(dailyKlineData, 60).slice(-visibleDataCount);
+
+    // 绘制均线
+    const drawMA = (maData, color) => {
+        const line = d3.line()
+            .defined(d => d !== null) // 忽略 null 值
+            .x((_, i) => xScale(visibleData[i].date) + xScale.bandwidth() / 2)
+            .y(d => yScale(d));
+
+        svg.append('path')
+            .datum(maData)
+            .attr('fill', 'none')
+            .attr('stroke', color)
+            .attr('stroke-width', 1.5)
+            .attr('d', line);
+    };
+
+    drawMA(ma5, 'blue');  // MA5
+    drawMA(ma10, 'orange'); // MA10
+    drawMA(ma20, 'purple'); // MA20
+    drawMA(ma60, 'brown');  // MA60
+
+    // 添加图例
+    const legend = svg.append('g').attr('transform', `translate(0, -30)`); // 图例位置
+
+    const legendData = [
+        { label: 'MA5', color: 'blue' },
+        { label: 'MA10', color: 'orange' },
+        { label: 'MA20', color: 'purple' },
+        { label: 'MA60', color: 'brown' }
+    ];
+
+    legend.selectAll('.legend-item')
+        .data(legendData)
+        .enter()
+        .append('g')
+        .attr('class', 'legend-item')
+        .attr('transform', (_, i) => `translate(${i * 80}, 0)`) // 每个图例间隔 80 像素
+        .each(function (d) {
+            const g = d3.select(this);
+            g.append('rect')
+                .attr('x', 0)
+                .attr('y', -10)
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', d.color);
+
+            g.append('text')
+                .attr('x', 15)
+                .attr('y', 0)
+                .attr('text-anchor', 'start')
+                .style('font-size', '12px')
+                .text(d.label);
+        });
+}

@@ -9,17 +9,39 @@ $(document).ready(function () {
     // 动态加载股票文件列表
     async function loadStockFiles() {
         try {
-            const response = await fetch('./listFiles.php');
-            if (!response.ok) throw new Error('无法加载文件列表');
-            const fileList = await response.json();
+            let fileList = [];
 
-            if (fileList.error) {
-                throw new Error(fileList.error);
+            // 检测当前网址是否为 127.0.0.1
+            if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+                const response = await fetch('./stockcodes/');
+                if (!response.ok) throw new Error('无法直接加载本地文件列表');
+                const text = await response.text();
+
+                // 解析文件列表（假设服务器启用了目录索引功能）
+                const fileNames = [...text.matchAll(/href="([^"]+\.txt)"/g)].map(match => match[1]);
+                for (const fileName of fileNames) {
+                    const response = await fetch(`./${fileName}`);
+                    if (!response.ok) throw new Error(`无法加载文件 ${fileName}`);
+                    const text = await response.text();
+                    const lineCount = text.split('\n').filter(line => line.trim() !== '').length; // 计算非空行数
+                    fileList.push({ name: decodeURIComponent(fileName.replace(/^.*[\\/]/, '')), lineCount }); // 去掉文件夹路径并解码
+                }
+            } else {
+                // 通过 PHP 脚本获取文件列表
+                const response = await fetch('./listFiles.php');
+                if (!response.ok) throw new Error('无法加载文件列表');
+                fileList = await response.json();
+
+                if (fileList.error) {
+                    throw new Error(fileList.error);
+                }
             }
 
+            // 构建文件选择器选项
             const options = fileList.map(file => {
+                console.log(file); // 调试输出文件信息
                 const baseName = file.name.replace(/^.*[\\/]/, '').replace(/\.txt$/, '');
-                return `<option value="${file.name}">${baseName} (${file.lineCount} 个股票)</option>`;
+                return `<option value="${file.name}">${baseName} (${file.lineCount || '未知'} 个股票)</option>`;
             });
 
             $('#fileSelector').html(options.join('')); // 一次性更新 DOM
@@ -78,8 +100,9 @@ $(document).ready(function () {
         queryButton.prop('disabled', false).text('查询');
 
         // 渲染符合条件的股票
-        stocksWithSideways.forEach(({ stockName, code, remark, stockData, analysisResult }, index) => {
+        stocksWithSideways.forEach(async ({ stockName, code, remark, stockData, analysisResult }, index) => {
             const stockContainer = $('<div>').addClass('stock-container mb-4');
+            const dailyKlineData = await fetchDailyKlineData(code);
 
             // 股票名称（点击折叠分时图）
             const stockHeader = $('<div>')
@@ -96,17 +119,28 @@ $(document).ready(function () {
                             showToast('复制失败，请手动复制', 'danger');
                         });
                     } else {
-                        // 如果点击的是股票名称，折叠分时图
-                        $(this).next('.stock-chart').toggle();
+                        // 如果点击的是股票名称，折叠分时图和日K图
+                        $(this).next('.chart-container').toggle();
                     }
                 });
 
             const stockChart = $('<div>').addClass('stock-chart').css('display', 'block');
-            $('#charts').append(stockContainer.append(stockHeader).append(stockChart));
+            const dailyKlineChart = $('<div>').addClass('daily-kline-chart').css('display', 'block');
+
+            // 创建一个新的容器 div，将 stockChart 和 dailyKlineChart 包裹起来
+            const chartContainer = $('<div>').addClass('chart-container');
+            chartContainer.append(stockChart).append(dailyKlineChart);
+
+            // 将 stockContainer 和 chartContainer 一起添加到 #charts
+            $('#charts').append(stockContainer.append(stockHeader).append(chartContainer));
+
+            // 绘制分时图和日K图
             drawChart(stockName, code, stockData.time, stockData.price, parseFloat(stockData.qt[code][4]), stockData.volume, analysisResult, stockChart[0]);
+            drawDailyKlineChart(dailyKlineData, dailyKlineChart[0]);
         });
 
         // 渲染不符合条件的股票
+        /*
         if (stocksWithoutSideways.length > 0) {
             const noSidewaysContainer = $('<div>').addClass('no-sideways-container mb-4');
             const noSidewaysHeader = $('<div>')
@@ -140,6 +174,7 @@ $(document).ready(function () {
 
             $('#charts').append(noSidewaysContainer.append(noSidewaysHeader).append(noSidewaysList));
         }
+            */
     });
 
     async function loadStockCodesFromFile(fileName) {

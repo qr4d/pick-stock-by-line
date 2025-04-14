@@ -50,3 +50,36 @@ async function fetchStockData(stockCode) {
         throw error;
     }
 }
+
+// 获取日K图数据
+async function fetchDailyKlineData(stockCode) {
+    try {
+        const timestamp = new Date().getTime();
+        const url = `https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq&param=${stockCode},day,,,180,qfq&r=${timestamp}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        const prefix = `kline_dayqfq=`;
+
+        if (text.startsWith(prefix)) {
+            const jsonData = JSON.parse(text.substring(prefix.length));
+            if (jsonData && jsonData.code === 0 && jsonData.data && jsonData.data[stockCode]) {
+                const klineData = jsonData.data[stockCode].qfqday;
+                return klineData.map(entry => ({
+                    date: entry[0], // 日期
+                    open: parseFloat(entry[1]), // 开盘价
+                    close: parseFloat(entry[2]), // 收盘价
+                    high: parseFloat(entry[3]), // 最高价
+                    low: parseFloat(entry[4]), // 最低价
+                    volume: parseInt(entry[5], 10) // 成交量
+                }));
+            } else {
+                throw new Error("API 返回的数据结构不完整或缺少必要字段");
+            }
+        } else {
+            throw new Error("API 返回的数据格式不正确");
+        }
+    } catch (error) {
+        console.error(`获取股票 ${stockCode} 的日K图数据失败:`, error);
+        throw error;
+    }
+}
