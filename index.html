@@ -29,32 +29,60 @@
                 <div class="card-body">
                     <form id="parameterForm">
                         <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="minDuration" class="form-label">横盘最小持续时间（分钟）</label>
-                                <input type="number" class="form-control" id="minDuration" value="15">
+                            <!-- 横盘参数 -->
+                            <h5>参数</h5>
+                            <div class="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4 mb-3">
+                                <div class="input-group">
+                                    <span  class="input-group-text">横盘 &gt; </span>
+                                    <input type="number" class="form-control" id="minSidewaysDuration" value="15" placeholder="150">
+                                    <span  class="input-group-text">分钟，波幅 &lt; </span>
+                                    <input type="number" class="form-control" id="maxSidewaysRange" value="2">
+                                    <span  class="input-group-text">%</span>
+                                </div>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="maxPriceRangePercent" class="form-label">横盘最大价格波动百分比</label>
-                                <input type="number" class="form-control" id="maxPriceRangePercent" value="2" step="0.1">
+                            <div class="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4  mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text">横盘下限</span>
+                                    <input type="number" class="form-control" id="minSidewaysHeight" value="1">
+                                    <span  class="input-group-text">%，上限</span>
+                                    <input type="number" class="form-control" id="maxSidewaysHeight" value="7">
+                                    <span  class="input-group-text">%</span>
+                                </div>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="uptrendThreshold" class="form-label">拉升幅度阈值（百分比）</label>
-                                <input type="number" class="form-control" id="uptrendThreshold" value="3" step="0.1">
+
+                            <!-- 横盘前有拉升 -->
+                            <div class="col-12 mb-3">
+                                <div class="form-check  form-switch">
+                                    <input type="checkbox" class="form-check-input" id="enableUptrendBeforeSideways" checked onchange="toggleUptrendBeforeParams()">
+                                    <label class="form-check-label" for="enableUptrendBeforeSideways">横盘前拉升</label>
+                                </div>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="uptrendMaxDuration" class="form-label">拉升最大持续时间（分钟）</label>
-                                <input type="number" class="form-control" id="uptrendMaxDuration" value="30">
+                            <div class="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4  mb-3" id="uptrendBeforeSidewaysParams">
+                                <div class="input-group">
+                                    <span class="input-group-text">幅度 &gt; </span>
+                                    <input type="number" class="form-control" id="minUptrendBeforePercent" value="3">
+                                    <span class="input-group-text">%，时长 &lt; </span>
+                                    <input type="number" class="form-control" id="maxUptrendBeforeDuration" value="20">
+                                    <span class="input-group-text">分钟</span>
+                                </div>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="maxSidewaysHeight" class="form-label">横盘高度上限百分比</label>
-                                <input type="number" class="form-control" id="maxSidewaysHeight" value="7" step="0.1">
+
+                            <div class="col-12 mb-3">
+                                <div class=" form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" id="enableUptrendAfterSideways" checked onchange="toggleUptrendAfterParams()">
+                                    <label class="form-check-label" for="enableUptrendAfterSideways">横盘后拉升</label>
+                                </div>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="minSidewaysHeight" class="form-label">横盘高度下限百分比</label>
-                                <input type="number" class="form-control" id="minSidewaysHeight" value="1" step="0.1">
+                            <div class="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4  mb-3" id="uptrendAfterSidewaysParams">
+                                <div class="input-group">
+                                    <span class="input-group-text">幅度 &gt; </span>
+                                    <input type="number" class="form-control" id="minUptrendAfterPercent" value="3">
+                                    <span class="input-group-text">%，时长 &lt; </span>
+                                    <input type="number" class="form-control" id="maxUptrendAfterDuration" value="20">
+                                    <span class="input-group-text">分钟</span>
+                                </div>
                             </div>
                         </div>
-                        <button type="button" id="applyParameters" class="btn btn-primary">应用参数</button>
                     </form>
                 </div>
             </div>
@@ -62,19 +90,15 @@
 
         <!-- 股票代码输入区域 -->
         <div class="mb-3">
-            <label for="stockCodes" class="form-label">输入股票代码（用逗号分隔）</label>
-            <input type="text" class="form-control" id="stockCodes" placeholder="例如：sz002630,sh600519">
+            <label for="fileSelector" class="form-label">选择股票代码文件</label>
+            <select id="fileSelector" class="form-select">
+                <!-- 文件列表将通过 JavaScript 动态加载 -->
+            </select>
+            <small id="fileInfo" class="form-text text-muted">正在加载文件列表...</small>
         </div>
         <div class="mb-3">
-            <label class="form-label">筛选模式</label>
-            <div>
-                <input type="radio" id="modeUptrendToSideways" name="filterMode" value="uptrendToSideways" checked>
-                <label for="modeUptrendToSideways">拉升后横盘</label>
-            </div>
-            <div>
-                <input type="radio" id="modeSidewaysToUptrend" name="filterMode" value="sidewaysToUptrend">
-                <label for="modeSidewaysToUptrend">横盘后拉升</label>
-            </div>
+            <label for="stockCodes" class="form-label">或 输入股票代码（用逗号分隔）</label>
+            <input type="text" class="form-control" id="stockCodes" placeholder="例如：sz002630,sh600519">
         </div>
         <button id="queryButton" class="btn btn-primary">查询</button>
         <div id="charts" class="mt-4"></div>

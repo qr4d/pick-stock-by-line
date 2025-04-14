@@ -27,10 +27,14 @@ async function fetchStockData(stockCode) {
                         previousVolume = cumulativeVolume;
                     });
 
+                    // 提取昨日收盘价
+                    const yesterdayClose = parseFloat(stockData.qt[stockCode][4]);
+
                     return {
                         time,
                         price,
                         volume,
+                        yesterdayClose, // 添加昨日收盘价
                         qt: stockData.qt
                     };
                 } else {

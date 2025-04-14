@@ -30,23 +30,54 @@ function drawChart(stockName, stockCode, time, price, yesterdayClose, volume, si
     // 添加标题
     svg.append('text').attr('x', chartWidth / 2).attr('y', -20).attr('text-anchor', 'middle').style('font-size', '16px').text(`${stockName} (${stockCode})`);
 
+    // 绘制昨日收盘价的虚线
+
+    for(let i = -5; i < 6; i++) {
+        svg.append('line')
+            .attr('x1', 0)
+            .attr('y1', yScale(yesterdayClose*(1+i*0.02)))
+            .attr('x2', chartWidth - margin.left - margin.right)
+            .attr('y2', yScale(yesterdayClose*(1+i*0.02)))
+            .attr('stroke', 'gray')
+            .attr('stroke-width', 1)
+            .attr('stroke-dasharray', '4,'+Math.abs(i*2)); // 虚线
+        svg.append('text')
+            .attr('x', chartWidth - margin.left - margin.right-10) // 向左偏移 10 像素
+            .attr('y', yScale(yesterdayClose*(1+i*0.02)) ) // 向下偏移 5 像素以居中
+            .attr('text-anchor', 'end')
+            .style('font-size', '12px')
+            .style('fill', 'gray')
+            .text(i*2 + '%');  
+    }
+
+
     // 绘制横盘和拉升区域
     sidewaysAnalysis.forEach(region => {
-        // 绘制横盘区域
+        // 横盘区域的时间范围
         const startX = xScale(time[region.start]);
         const endX = xScale(time[region.end]);
-        const avgX = (startX + endX) / 2; // 横盘区域的中间位置
-        const avgY = yScale(region.avgPrice); // 横盘均价对应的 Y 坐标
 
+        // 横盘区域的价格范围
+        const priceRange = price.slice(region.start, region.end + 1); // 提取横盘区域的价格数据
+        const minPrice = Math.min(...priceRange); // 横盘区域最低点
+        const maxPrice = Math.max(...priceRange); // 横盘区域最高点
+
+        // 映射到图表的 Y 坐标
+        const minY = yScale(maxPrice); // 注意：Y 坐标是从上到下的，价格越高 Y 越小
+        const maxY = yScale(minPrice);
+
+        // 绘制横盘区域矩形
         svg.append('rect')
             .attr('x', startX)
-            .attr('y', 0)
+            .attr('y', minY) // 从最高点开始
             .attr('width', endX - startX)
-            .attr('height', chartHeight)
+            .attr('height', maxY - minY) // 高度为最低点和最高点之间的差
             .attr('fill', 'yellow')
             .attr('opacity', 0.3); // 半透明效果
 
-        // 在横盘均价附近注明横盘时长，稍微向上移动
+        // 在横盘均价附近注明横盘时长
+        const avgX = (startX + endX) / 2; // 横盘区域的中间位置
+        const avgY = (minY + maxY) / 2; // 横盘区域的中间高度
         const duration = region.end - region.start + 1; // 横盘时长（分钟）
         svg.append('text')
             .attr('x', avgX)
@@ -55,35 +86,59 @@ function drawChart(stockName, stockCode, time, price, yesterdayClose, volume, si
             .style('font-size', '12px')
             .style('fill', 'black')
             .text(`${duration}分钟`);
+            
+        // 绘制横盘前的拉升线
+        if (region.uptrendBefore) {
+            const { uptrendStartIndex, uptrendEndIndex, uptrendPercent } = region.uptrendBefore;
 
-        // 绘制拉升线
-        if (region.hasUptrend) {
-            const uptrendStartX = xScale(time[region.uptrendStartIndex]);
-            const uptrendStartY = yScale(region.uptrendStartPrice);
-            const uptrendEndX = xScale(time[region.end + 1]); // 拉升结束点在横盘结束后的索引
-            const uptrendEndY = yScale(price[region.end + 1]);
+            // 计算拉升线中点坐标
+            const midX = (xScale(time[uptrendStartIndex]) + xScale(time[uptrendEndIndex])) / 2;
+            const midY = (yScale(price[uptrendStartIndex]) + yScale(price[uptrendEndIndex])) / 2;
 
             svg.append('line')
-                .attr('x1', uptrendStartX)
-                .attr('y1', uptrendStartY)
-                .attr('x2', uptrendEndX)
-                .attr('y2', uptrendEndY)
+                .attr('x1', xScale(time[uptrendStartIndex]))
+                .attr('y1', yScale(price[uptrendStartIndex]))
+                .attr('x2', xScale(time[uptrendEndIndex]))
+                .attr('y2', yScale(price[uptrendEndIndex]))
                 .attr('stroke', 'red')
                 .attr('stroke-width', 2)
-                .attr('stroke-dasharray', '4,4'); // 虚线效果
+                .attr('stroke-dasharray', '4,4'); // 虚线
 
-            // 在拉升线下方注明拉升幅度
-            const uptrendPercent = region.uptrendPercent; // 拉升幅度
-            const labelX = (uptrendStartX + uptrendEndX) / 2; // 拉升线的中间位置
-            const labelY = Math.max(uptrendStartY, uptrendEndY) + 15; // 拉升线下方
-
+            // 在拉升线中点右侧注明拉升百分比
             svg.append('text')
-                .attr('x', labelX)
-                .attr('y', labelY) // 拉升线下方
-                .attr('text-anchor', 'middle')
+                .attr('x', midX + 5) // 向右偏移 5 像素
+                .attr('y', midY) // 保持在中点高度
+                .attr('text-anchor', 'start')
                 .style('font-size', '12px')
                 .style('fill', 'red')
-                .text(`${uptrendPercent}%`);
+                .text(`${uptrendPercent.toFixed(2)}%`);
+        }
+
+        // 绘制横盘后的拉升线
+        if (region.uptrendAfter) {
+            const { uptrendStartIndex, uptrendEndIndex, uptrendPercent } = region.uptrendAfter;
+
+            // 计算拉升线中点坐标
+            const midX = (xScale(time[uptrendStartIndex]) + xScale(time[uptrendEndIndex])) / 2;
+            const midY = (yScale(price[uptrendStartIndex]) + yScale(price[uptrendEndIndex])) / 2;
+
+            svg.append('line')
+                .attr('x1', xScale(time[uptrendStartIndex]))
+                .attr('y1', yScale(price[uptrendStartIndex]))
+                .attr('x2', xScale(time[uptrendEndIndex]))
+                .attr('y2', yScale(price[uptrendEndIndex]))
+                .attr('stroke', 'green')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '4,4'); // 虚线
+
+            // 在拉升线中点右侧注明拉升百分比
+            svg.append('text')
+                .attr('x', midX + 5) // 向右偏移 5 像素
+                .attr('y', midY) // 保持在中点高度
+                .attr('text-anchor', 'start')
+                .style('font-size', '12px')
+                .style('fill', 'green')
+                .text(`${uptrendPercent.toFixed(2)}%`);
         }
     });
 
